@@ -42,7 +42,7 @@ if $4; then
 else
 	file_path="${2}"
 	cd "${file_path}" || exit_error 1
-	mapfile -t file_list < <(find . -size -32M | sed '/^\.$/d' | sort -u)
+	mapfile -t file_list < <(find . -type f -size -32M | sed '/^\.$/d' | sort -u)
 fi
 all_files="${#file_list[@]}"
 scanned_files=0
