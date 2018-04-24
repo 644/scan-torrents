@@ -34,7 +34,7 @@ read -r user_input
 if echo "${user_input}" | grep -qi '^n'; then
 	exit 0
 fi
-api_key='abe03596638a9e17ee9815d658c21df163e85c147b2977ada5e3408963dde3ac'
+api_key='Your API Key' ## https://www.virustotal.com/#/settings/apikey
 if $4; then
 	file_path="${2%/*}"
 	cd "${file_path}" || exit_error 1
