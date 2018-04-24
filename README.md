@@ -9,3 +9,5 @@ to Tools -> Preferences -> Downloads -> Run external program on torrent completi
 - Verbosity option
 - Reupload file
 - Private API
+
+![Gif example](https://github.com/deplexor/scan-torrents/raw/master/scan-torrents.gif)
