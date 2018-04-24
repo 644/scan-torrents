@@ -1,0 +1,78 @@
+#!/bin/bash
+function exit_error(){
+	case "$1" in
+		0)
+			echo 'Unable to open xfce4-terminal'
+			;;
+		1)
+			echo 'Unable to change directory to torrent path'
+			;;
+		2)
+			echo 'There are no files to scan'
+			;;
+		3)
+			echo 'Curl was unable to retrieve the requested resource'
+			;;
+		4)
+			echo 'There was an error when uploading the file'
+			;;
+	esac
+	read -r
+	exit 1
+}
+if $1; then
+	if [[ -f $2 ]]; then
+		single_file=true
+	else
+		single_file=false
+	fi
+	xfce4-terminal -e "/usr/local/bin/scan-torrents false \"$2\" \"$3\" $single_file" || exit_error 0
+	exit 0
+fi
+printf 'Do you want to scan %s? (Y/n): ' "$3"
+read -r user_input
+if echo "${user_input}" | grep -qi '^n'; then
+	exit 0
+fi
+api_key='abe03596638a9e17ee9815d658c21df163e85c147b2977ada5e3408963dde3ac'
+if $4; then
+	file_path="${2%/*}"
+	cd "${file_path}" || exit_error 1
+	file_list=("${2}")
+else
+	file_path="${2}"
+	cd "${file_path}" || exit_error 1
+	mapfile -t file_list < <(find . -size -32M | sed '/^\.$/d' | sort -u)
+fi
+all_files="${#file_list[@]}"
+scanned_files=0
+if [[ $all_files -eq 0 ]]; then
+	exit_error 2
+fi
+until ((scanned_files == all_files)); do
+	for f in "${file_list[@]}"; do
+		sleep 1
+		file_size="$(stat --printf="%s" "${f}")"
+		if [[ $file_size -gt 32000000 ]]; then
+			printf 'Skipping %s' "${f}"
+			continue
+		fi
+		file_sha1="$(sha1sum "${f}" | awk '{print $1}')"
+		file_name="${f##*/}"
+		printf 'Checking %s\n' "${file_name}"
+		curl_response="$(curl -s --request GET --url "https://www.virustotal.com/vtapi/v2/file/report?apikey=${api_key}&resource=${file_sha1}" || exit_error 3)"
+		if echo "${curl_response}" | grep -q 'The requested resource is not'; then
+			printf 'Uploading %s\n' "${file_name}"
+			curl_response="$(curl -s --request POST --url 'https://www.virustotal.com/vtapi/v2/file/scan' --form "apikey=${api_key}" --form "file=@${f}")"
+			if ! echo "${curl_response}" | grep -q 'come back later for the report'; then
+				exit_error 4
+			fi
+		else
+			((scanned_files++))
+			echo "${file_name}"
+			echo "${curl_response}" | jq '.' | grep -E '"positives":|"scan_date":|"total":'
+			printf '\n\n'
+		fi
+	done
+done
+bash
